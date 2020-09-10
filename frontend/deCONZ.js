@@ -45,7 +45,7 @@ function(app) {
             $ctrl.deleteDevice = function() {
 
                 // Make api call here
-                console.log('Deleting -> ' + 'deviceclass: ' + $ctrl.device.deviceclass + '\nDevice ID: ' + $ctrl.device.id );
+                // console.log('Deleting -> ' + 'deviceclass: ' + $ctrl.device.deviceclass + '\nDevice ID: ' + $ctrl.device.id );
 
                 apiDeCONZ.setDeCONZdata($ctrl.device.deviceclass, 'DELETE', $ctrl.device.id)
                 .then(function() {
@@ -74,11 +74,12 @@ function(app) {
         controller: zzDeconzPluginsTableController,
     });
 
-    function deCONZController($uibModal, $scope, apiDeCONZ) {
+    function deCONZController($uibModal, $scope, $location, apiDeCONZ) {
 
         var $ctrl = this
         $ctrl.refreshDeCONZ = refreshDeCONZ;
         $ctrl.permitJoins = permitJoins;
+        $ctrl.autoConfPlugin = autoConfPlugin;
 
         $ctrl.$onInit = function() {
             refreshDeCONZ('lights');
@@ -156,9 +157,52 @@ function(app) {
             })
             );
         }
+
+        function autoConfPlugin() {
+            let configOutput
+
+            apiDeCONZ.checkDeCONZsetup()
+            .then(configOutput => $uibModal.open({
+                templateUrl: 'app/deCONZ/autoConfPluginModal.html',
+                controllerAs: '$mctrl',
+                controller: function($scope, $interval, apiDeCONZ) {
+                    var $mctrl = this;
+
+                    $scope.apiShowGet = true
+                    
+                    $scope.apiCancelButton = $.t('Cancel')
+
+                    $scope.configOutput = angular.fromJson(configOutput)
+
+                    $mctrl.getAPIkey = function() {
+        
+                        payload = new Object()
+                        payload.devicetype = "domoticz_deconz"
+                        JSONpayload = angular.toJson(payload)
+            
+                        apiDeCONZ.postDeCONZdata(configOutput[0].internalipaddress, configOutput[0].internalport, 'api', JSONpayload, $mctrl.gwPassword).then(function(response) {
+                            // console.log('Response was: ' + angular.toJson(response, true))
+                            if ("success" in response[0]) {
+                                response[0].API_KEY = response[0].success.username
+                                delete response[0].success;
+                                $scope.apiShowGet = false
+                                $scope.apiCancelButton = $.t('Close')
+                            }
+
+                            $scope.configOutput1 = response
+                        })
+                        
+                    }
+                }
+            })
+            );
+        }
+
+
+
     }
 
-    app.factory('apiDeCONZ', function($http, $location, $q, $rootScope, domoticzApi) {
+    app.factory('apiDeCONZ', function($http, $location, $q, $compile, $rootScope, domoticzApi) {
         var requestsCount = 0;
         var requestsQueue = [];
         var apiHost = "";
@@ -168,8 +212,10 @@ function(app) {
 
         return {
             sendRequest: sendRequest,
+            checkDeCONZsetup: checkDeCONZsetup,
             getDeCONZdata: getDeCONZdata,
             setDeCONZdata: setDeCONZdata,
+            postDeCONZdata: postDeCONZdata,
         };
 
         function init() {
@@ -207,6 +253,34 @@ function(app) {
 
                     return;
                 });
+        }
+
+        function checkDeCONZsetup() {
+            return onInit.then(function() {
+                var deferred = $q.defer();
+                console.log('Checking DeCONZdsetup')
+
+                url = 'https://dresden-light.appspot.com/discover'
+
+                $http({
+                    method: 'GET',
+                    url: url,
+
+                }).then(function successCallback(response) {
+                    // console.log('deCONZ: Discover Recieved')
+                    // console.log('response Data:' + angular.toJson(response.data, true))
+
+                    deferred.resolve(response.data)
+                    },function errorCallback(response) {
+                    console.error('Error getting deCONZ Discover data:' + angular.toJson(response, true) )
+                    bootbox.alert('<h2>' + $.t('Likely 503 Over Quota Error') + '</h2><br><p>' +
+                    $.t('This application is temporarily over its serving quota. Please try again tomorrow.') +
+                    '</p><a target="_blank" href="https://dresden-light.appspot.com/discover">https://dresden-light.appspot.com/discover</a>')
+                    deferred.reject(response)
+                });
+
+            return deferred.promise;
+        });
         }
 
         function getDeCONZdata(deviceClass, id = '') {
@@ -267,6 +341,42 @@ function(app) {
                         deferred.resolve(response.data)
                         },function errorCallback(response) {
                         // console.log('Error getting deCONZ data:' + response )
+                        deferred.reject(response)
+                    });
+                }
+
+            return deferred.promise;
+        });
+        }
+
+        function postDeCONZdata(host, port, endpoint, body, gwPass) {
+
+            return onInit.then(function() {
+                var deferred = $q.defer();
+
+                token = btoa('delight:' + gwPass)
+
+                if (apiHost !== "") {
+
+                    url = 'http://' + host + ':' + port + '/' + endpoint
+                    // console.log('POST API URL is: ' + 'http://' + host + ':' + port + '/' + endpoint)
+                    $http({
+                        method: 'POST',
+                        url: url,
+                        headers: {
+                            'Authorization': 'Basic ' + token
+                        },
+                        data: body,
+
+                    }).then(function successCallback(response) {
+                        // console.log('deCONZ: Data Recieved')
+                        // console.log('response Data:' + angular.toJson(response.data, true))
+                        deferred.resolve(response.data)
+                        },function errorCallback(response) {
+                        console.error('Error getting deCONZ data:' + angular.toJson(response.data, true) )
+                        bootbox.alert('<h2>' + $.t('Error getting API key') + '</h2><br>' +
+                        '<p>' + $.t('This could also indicate a bad password.') + '</p>' +
+                        '<pre>' + angular.toJson(response.data, true) + '</pre>')
                         deferred.reject(response)
                     });
                 }

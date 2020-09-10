@@ -26,6 +26,10 @@
             />
 
             <section class="bottom-panel">
+                <button class="btn btn-default pull-left ng-binding"
+                 ng-click="$ctrl.autoConfPlugin()">
+                 {{:: 'Configure Plugin' | translate }}
+                </button>
                 <button class="btn btn-default pull-right ng-binding"
                  ng-click="$ctrl.permitJoins()"
                  ng-disabled="$ctrl.isJoining">
@@ -111,7 +115,7 @@
         <h3 class="modal-title">{{:: 'Delete Device' | translate }}</h3>
     </div>
     <div class="modal-body" style="text-align: center;">
-        Confirm deletion of: <b ng-bind-html=$ctrl.myname></b>
+        {{:: 'Confirm deletion of: ' | translate }}<b ng-bind-html=$ctrl.myname></b>
     </div>
 
     <div class="modal-footer">
@@ -124,6 +128,56 @@
                 class="btn btn-primary"
                 ng-click="$ctrl.deleteDevice()">
             {{:: 'Yes' | translate }}
+        </button>
+    </div>
+</script>
+
+<script type="text/ng-template" id="app/deCONZ/autoConfPluginModal.html">
+    <div class="modal-header">
+        <h3 class="modal-title">{{:: 'Configuring Plugin' | translate }}</h3>
+    </div>
+    <div class="modal-body" style="text-align: left;">
+        <table style="border-spacing: 5px; margin-left: auto; margin-right: auto;" width="66%">
+            <tbody>
+                <tr ng-repeat="(key, value) in configOutput[0]"><td>{{key}}</td><td>{{value}}</td></tr>
+            </tbody>
+          </table>
+        <hr>
+            <form style="text-align: center;" class="form-horizontal" name="modalGwPassForm">
+                <div class="control-group">
+                    <label class="control-label" for="gwPassword">{{:: 'Gateway Password' | translate }}:</label>
+                    <div class="controls">
+                        <input type="password"
+                            id="gwPassword"
+                            class="form-control"
+                            minlength="1"
+                            maxlength="100"
+                            ng-model="$mctrl.gwPassword"
+                            name="gwPassword"
+                        />
+                    </div>
+                </div>
+            </form>
+        <p>
+            <table style="border-spacing: 5px; margin-left: auto; margin-right: auto;" width="66%">
+                <tbody>
+                    <tr ng-repeat="(key, value) in configOutput1[0]"><td>{{key}}</td><td>{{value}}</td></tr>
+                </tbody>
+            </table>
+        </p>
+    </div>
+
+    <div class="modal-footer">
+        <button type="button"
+                class="btn btn-cancel"
+                ng-click="$dismiss()">
+            {{apiCancelButton}}
+        </button>        
+        <button type="button"
+                class="btn btn-primary"
+                ng-show="apiShowGet"
+                ng-click="$mctrl.getAPIkey()">
+            {{:: 'Get API Key' | translate }}
         </button>
     </div>
 </script>
